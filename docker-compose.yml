@@ -90,3 +90,32 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  worker:
+    build: .
+    image: nexcell-app:local
+    command: ["python", "-m", "app.worker"]
+    environment:
+      REDIS_URL: ${REDIS_URL}
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,redis; r=redis.Redis.from_url(os.environ['REDIS_URL']); sys.exit(0 if r.exists('worker:heartbeat') else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
