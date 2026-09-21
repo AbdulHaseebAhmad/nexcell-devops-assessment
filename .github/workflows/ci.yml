@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build production image (tagged with commit SHA)
+        run: docker build -t nexcell-app:${{ github.sha }} -t nexcell-app:local .
+
+      - name: Create env file from the example
+        run: cp .env.example .env
+
+      - name: Start the stack
+        run: docker compose up -d api worker
+
+      - name: Smoke test
+        run: ./smoke_test.sh
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
